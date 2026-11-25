@@ -195,3 +195,53 @@ function reallocate_(p){
   var ss=sheet_('ExamSessions'),sm=headerMap_(ss),sv=ss.getDataRange().getValues();for(var z=1;z<sv.length;z++)if(norm_(sv[z][sm.SessionID])===id){ss.getRange(z+1,sm.Status+1).setValue('Confirmed');break;}
   return {message:'Reallocation completed and audited.',candidateCount:pr.candidateCount,roomSummary:pr.roomSummary};
 }
+
+/**
+ * MANUAL SETUP — visible in the Apps Script Run dropdown.
+ * Creates missing VICORA tabs and adds missing schema columns without clearing records.
+ */
+function VICORA_setup() {
+  ensureSchema_();
+  return {
+    ok: true,
+    message: 'VICORA Exam Room Manager setup checked. Existing records were preserved.',
+    database: db_().getUrl(),
+    version: VICORA_VERSION
+  };
+}
+
+/**
+ * MANUAL CONNECTION TEST — visible in the Apps Script Run dropdown.
+ * Confirms access to the configured VICORA spreadsheet.
+ */
+function VICORA_testConnection() {
+  var database = db_();
+  return {
+    ok: true,
+    message: 'Connected to the VICORA Exam Room Manager database.',
+    databaseName: database.getName(),
+    databaseUrl: database.getUrl(),
+    databaseId: VICORA_DB_ID
+  };
+}
+
+/**
+ * MANUAL STATUS CHECK — visible in the Apps Script Run dropdown.
+ */
+function VICORA_getStatus() {
+  var database = db_();
+  var counts = {};
+  ['Students','Classes','Subjects','SubjectRegistrations','ExamSessions','RoomSettings','Allocations']
+    .forEach(function(name) {
+      var tab = database.getSheetByName(name);
+      counts[name] = tab ? Math.max(0, tab.getLastRow() - 1) : 0;
+    });
+  return {
+    ok: true,
+    app: 'VICORA Exam Room Manager',
+    version: VICORA_VERSION,
+    database: database.getName(),
+    databaseId: VICORA_DB_ID,
+    counts: counts
+  };
+}
