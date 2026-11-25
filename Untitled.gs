@@ -4,7 +4,6 @@
  * Existing data is preserved. Missing tabs/columns are added non-destructively.
  */
 const VICORA_DB_ID = '12odSjNeGBTldU7rWoV27p7SHdKlkBhNdn1oWoQY_Fb0';
-const VICORA_ADMIN_KEY = 'CHANGE-THIS-TO-A-LONG-PRIVATE-KEY';
 const VICORA_VERSION = '2.0.0';
 const SCHEMA = {
   Students:['StudentID','StudentName','Class','SourceSheet','ImportStatus'],
@@ -28,7 +27,6 @@ function lower_(v){return norm_(v).toLowerCase();}
 function key_(id,name,cls){return [id,name,cls].map(lower_).join('|');}
 function uid_(){return 'VIC-'+Utilities.getUuid().replace(/-/g,'').slice(0,12).toUpperCase();}
 function json_(o,cb){var body=JSON.stringify(o);if(cb&&/^[A-Za-z_$][\w.$]*$/.test(cb))return ContentService.createTextOutput(cb+'('+body+');').setMimeType(ContentService.MimeType.JAVASCRIPT);return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);}
-function admin_(key){if(VICORA_ADMIN_KEY.indexOf('CHANGE-')===0||String(key||'')!==VICORA_ADMIN_KEY)throw new Error('Administrator key is invalid or has not been configured.');}
 function sheet_(name){var s=db_().getSheetByName(name);if(!s)throw new Error('Database tab is missing: '+name);return s;}
 function ensureSchema_(){
   var d=db_();
@@ -62,10 +60,10 @@ function doGet(e){
       matches=matches.filter(function(a){var s=findSession_(a.SessionID);return s&&lower_(s.Status)==='confirmed';});
       out={ok:true,allocations:matches,allocation:matches.length?matches[matches.length-1]:null};
     }else if(action==='adminData'){
-      admin_(p.key);ensureSchema_();
+      ensureSchema_();
       out={ok:true,version:VICORA_VERSION,students:rows_('Students'),classes:rows_('Classes'),subjects:rows_('Subjects'),registrations:rows_('SubjectRegistrations'),sessions:rows_('ExamSessions'),rooms:rows_('RoomSettings'),allocations:rows_('Allocations'),candidates:rows_('CurrentExamCandidates')};
-    }else if(action==='previewAllocation'){admin_(p.key);out=preview_({sessionId:p.sessionId});}
-    else if(action==='mutationStatus'){admin_(p.key);var m=rows_('MutationLog').find(function(x){return norm_(x.OperationID)===norm_(p.operationId);});out=m?{ok:true,mutation:m}:{ok:false,error:'Operation is not yet recorded.'};}
+    }else if(action==='previewAllocation'){out=preview_({sessionId:p.sessionId});}
+    else if(action==='mutationStatus'){var m=rows_('MutationLog').find(function(x){return norm_(x.OperationID)===norm_(p.operationId);});out=m?{ok:true,mutation:m}:{ok:false,error:'Operation is not yet recorded.'};}
     else throw new Error('Unsupported GET action: '+action);
     return json_(out,p.callback);
   }catch(err){return json_({ok:false,error:err.message},p.callback);}
@@ -75,7 +73,7 @@ function doPost(e){
   try{
     lock.waitLock(25000);
     p=JSON.parse(e&&e.postData&&e.postData.contents||'{}');
-    admin_(p.key);ensureSchema_();
+    ensureSchema_();
     op=norm_(p.operationId)||uid_();
     var result=dispatch_(p);
     append_('MutationLog',{OperationID:op,Action:p.action,Status:'SUCCESS',Message:JSON.stringify(result),CreatedAt:new Date()});
