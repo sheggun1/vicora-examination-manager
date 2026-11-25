@@ -112,7 +112,7 @@ function editStudent_(p){
   var s=sheet_('Students'),m=headerMap_(s),v=s.getDataRange().getValues(),idx=-1;
   for(var i=1;i<v.length;i++)if(key_(v[i][m.StudentID],v[i][m.StudentName],v[i][m.Class])===old){idx=i;break;}
   if(idx<0)throw new Error('Student not found.');
-  var next={StudentID:requireText_(p.studentId,'Student ID'),StudentName:requireText_(p.name,'Student name'),Class:requireText_(p.className,'Class'),SourceSheet:'VICORA',ImportStatus:'Active'};
+  var next={StudentID:requireText_(p.studentId,'Student ID'),StudentName:requireText_(p.name,'Student name'),Class:requireText_(p.className,'Class')};
   if(rows_('Students').some(function(x){return key_(x.StudentID,x.StudentName,x.Class)===key_(next.StudentID,next.StudentName,next.Class)&&key_(x.StudentID,x.StudentName,x.Class)!==old;}))throw new Error('The edited student identity already exists.');
   Object.keys(next).forEach(function(k){if(m[k]!==undefined)s.getRange(idx+1,m[k]+1).setValue(next[k]);});
   return {message:'Student updated.'};
