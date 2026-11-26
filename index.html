@@ -107,7 +107,7 @@ function drawRooms(){
      });
    });
  });
- let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts','SS1 Commercial','SS1 Unclassified','SS2 Science','SS2 Arts','SS2 Commercial','SS2 Unclassified','Unclassified'];
+ let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1 Science','SS1C Arts','SS1C Commercial','SS1 Unclassified','SS2 Science','SS2C Arts','SS2C Commercial','SS2 Unclassified','Unclassified'];
  let subjectRows=Object.values(subjectClassRoomCounts).sort((a,b)=>{
    let ai=classOrderForSubjects.indexOf(a.className),bi=classOrderForSubjects.indexOf(b.className);
    return (ai<0?999:ai)-(bi<0?999:bi)||a.subject.localeCompare(b.subject);
