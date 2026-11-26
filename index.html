@@ -57,8 +57,9 @@ function classStream(a,regs){
  if(c==='SS1A'||c==='SS1B')return 'SS1 Science';
  if(c==='SS2A')return 'SS2 Science';
  let subjects=regs.filter(r=>String(r.StudentID)===String(a.StudentID)&&String(r.StudentName)===String(a.StudentName)&&String(r.Class)===String(a.Class)).map(r=>normalizedSubject(r.Subject));
- let arts=subjects.filter(s=>/\b(GOVERNMENT|CRS|CHRISTIAN RELIGIOUS|LITERATURE|HISTORY)\b/.test(s)||(c.startsWith('SS1')&&/\bYORUBA\b/.test(s))).length;
- let comm=subjects.filter(s=>/\b(MARKETING|ACCOUNTING|COMMERCE|ECONOMICS)\b/.test(s)).length;
+ let compactSubjects=subjects.map(s=>s.replace(/[^A-Z0-9]/g,''));
+ let arts=compactSubjects.some(s=>s.includes('CRS')||s.includes('LITERATURE'));
+ let comm=compactSubjects.some(s=>s.includes('ECON')||s.includes('COMMERCE'));
  if(/^SS1C/.test(c)||/^SS2C/.test(c)){
    if(arts>comm&&arts>0)return c.startsWith('SS1')?'SS1 Arts':'SS2 Arts';
    if(comm>arts&&comm>0)return c.startsWith('SS1')?'SS1 Commercial':'SS2 Commercial';
