@@ -74,7 +74,7 @@ function printReport(type){
 function showRoomView(view){document.querySelectorAll('[data-room-view]').forEach(b=>b.classList.toggle('on',b.dataset.roomView===view));$('roomLists').hidden=view!=='lists';$('classAnalysis').hidden=view!=='classes';$('subjectAnalysis').hidden=view!=='subjects'}
 function normalizedSubject(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,' ').replace(/\s+/g,' ').trim()}
 function identityPart(v){return String(v??'').trim().replace(/\s+/g,' ').toLowerCase()}
-function registrationMatches(r,a){return identityPart(r.StudentID)===identityPart(a.StudentID)&&identityPart(r.Class)===identityPart(a.Class)}
+function registrationMatches(r,a){return identityPart(r.StudentID)===identityPart(a.StudentID)&&identityPart(r.Class).replace(/[^a-z0-9]/g,'')===identityPart(a.Class).replace(/[^a-z0-9]/g,'')}
 function classStream(a,regs){
  let c=String(a.Class||'').toUpperCase().replace(/\s+/g,'');
  if(/^JSS1/.test(c))return 'JSS1';if(/^JSS2/.test(c))return 'JSS2';if(/^JSS3/.test(c))return 'JSS3';
@@ -95,7 +95,7 @@ function subjectClassStream(a,r,regs){
  return c||'Unclassified';
 }
 function drawRooms(){
- let id=$('printSession').value||$('sessionSelect').value,rooms=D.rooms.filter(r=>r.SessionID===id).sort((a,b)=>Number(a.RoomNumber)-Number(b.RoomNumber)),regs=(D.registrations||[]).filter(r=>String(r.RegistrationStatus||'').trim().toLowerCase()==='active'),saved=D.allocations.filter(a=>a.SessionID===id),draft=(!saved.length&&PREVIEW&&PREVIEW.sessionId===id)?PREVIEW.allocations:null,source=saved.length?saved:(draft||[]);
+ let id=$('printSession').value||$('sessionSelect').value,rooms=D.rooms.filter(r=>identityPart(r.SessionID)===identityPart(id)).sort((a,b)=>Number(a.RoomNumber)-Number(b.RoomNumber)),rawRegistrations=Array.isArray(D.registrations)?D.registrations:[],regs=rawRegistrations.map(r=>{let o={};Object.keys(r||{}).forEach(k=>o[String(k).replace(/[^a-z0-9]/gi,'').toLowerCase()]=r[k]);return {StudentID:o.studentid,StudentName:o.studentname,Class:o.class,Subject:o.subject,RegistrationStatus:o.registrationstatus};}).filter(r=>{let st=identityPart(r.RegistrationStatus);return st!=='removed'&&st!=='inactive'&&st!=='archived'&&st!=='no'&&st!=='false';}),saved=D.allocations.filter(a=>identityPart(a.SessionID)===identityPart(id)),draft=(!saved.length&&PREVIEW&&identityPart(PREVIEW.sessionId)===identityPart(id))?PREVIEW.allocations:null,source=saved.length?saved:(draft||[]);
  let classOrder={};(D.students||[]).forEach((st,i)=>{let k=String(st.Class||'').toLowerCase();if(classOrder[k]===undefined)classOrder[k]=i});
  let getClassRank=c=>classOrder[String(c||'').toLowerCase()]===undefined?999999:classOrder[String(c||'').toLowerCase()];
  let categories=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts & Commercial','SS2 Science','SS2 Science & Commercial','Unclassified'];
