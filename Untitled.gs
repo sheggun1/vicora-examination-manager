@@ -4,7 +4,7 @@
  * Existing data is preserved. Missing tabs/columns are added non-destructively.
  */
 const VICORA_DB_ID = '12odSjNeGBTldU7rWoV27p7SHdKlkBhNdn1oWoQY_Fb0';
-const VICORA_VERSION = '2.0.0';
+const VICORA_VERSION = '2.1.0';
 const SCHEMA = {
   Students:['StudentID','StudentName','Class','SourceSheet','ImportStatus'],
   Classes:['ClassName','StudentCount','IncludedInCurrentExam'],
@@ -19,7 +19,8 @@ const SCHEMA = {
   CurrentExamCandidates:['StudentID','StudentName','Class','SubjectCount','Eligibility'],
   RegistrationAudit:['Issue','StudentID','StudentName','Class','Details'],
   ExamReadiness:['Setting','Value'],
-  MutationLog:['OperationID','Action','Status','Message','CreatedAt']
+  MutationLog:['OperationID','Action','Status','Message','CreatedAt'],
+  SessionClasses:['SessionID','ClassName','Included']
 };
 function db_(){return SpreadsheetApp.openById(VICORA_DB_ID);}
 function norm_(v){return String(v===null||v===undefined?'':v).trim();}
@@ -61,7 +62,7 @@ function doGet(e){
       out={ok:true,allocations:matches,allocation:matches.length?matches[matches.length-1]:null};
     }else if(action==='adminData'){
       ensureSchema_();
-      out={ok:true,version:VICORA_VERSION,students:rows_('Students'),classes:rows_('Classes'),subjects:rows_('Subjects'),registrations:rows_('SubjectRegistrations'),sessions:rows_('ExamSessions'),rooms:rows_('RoomSettings'),allocations:rows_('Allocations'),candidates:rows_('CurrentExamCandidates')};
+      out={ok:true,version:VICORA_VERSION,students:rows_('Students'),classes:rows_('Classes'),subjects:rows_('Subjects'),registrations:rows_('SubjectRegistrations'),sessions:rows_('ExamSessions'),rooms:rows_('RoomSettings'),allocations:rows_('Allocations'),candidates:rows_('CurrentExamCandidates'),sessionClasses:rows_('SessionClasses'),eligibleCandidates:candidates_()};
     }else if(action==='previewAllocation'){out=preview_({sessionId:p.sessionId});}
     else if(action==='mutationStatus'){var m=rows_('MutationLog').find(function(x){return norm_(x.OperationID)===norm_(p.operationId);});out=m?{ok:true,mutation:m}:{ok:false,error:'Operation is not yet recorded.'};}
     else throw new Error('Unsupported GET action: '+action);
@@ -94,6 +95,7 @@ function dispatch_(p){
     case 'removeRegistration':return removeRegistration_(p);
     case 'createSession':return createSession_(p);
     case 'saveRooms':return saveRooms_(p);
+    case 'saveSessionClasses':return saveSessionClasses_(p);
     case 'confirmAllocation':return confirm_(p);
     case 'reallocate':return reallocate_(p);
     default:throw new Error('Unsupported action: '+p.action);
@@ -143,7 +145,7 @@ function saveRooms_(p){
   for(var j=v.length-1;j>=1;j--)if(norm_(v[j][m.SessionID])===id)s.deleteRow(j+1);
   rooms.forEach(function(r){append_('RoomSettings',r);});return {message:'Room settings saved.',roomCount:rooms.length};
 }
-function candidates_(){
+function candidates_(sessionId){
   var students=rows_('Students'),registrations=rows_('SubjectRegistrations'),classes=rows_('Classes'),current=rows_('CurrentExamCandidates');
   var classAllowed={};classes.forEach(function(c){classAllowed[lower_(c.ClassName)]=lower_(c.IncludedInCurrentExam)!=='no'&&lower_(c.IncludedInCurrentExam)!=='false'&&lower_(c.IncludedInCurrentExam)!=='excluded';});
   var subjectCounts={};registrations.forEach(function(r){if(lower_(r.RegistrationStatus)==='active'){var k=key_(r.StudentID,r.StudentName,r.Class);subjectCounts[k]=(subjectCounts[k]||0)+1;}});
@@ -153,14 +155,23 @@ function candidates_(){
     students.filter(function(s){var k=key_(s.StudentID,s.StudentName,s.Class);return lower_(s.ImportStatus)!=='archived'&&lower_(s.ImportStatus)!=='inactive'&&lower_(s.Class)!=='ss2b'&&classAllowed[lower_(s.Class)]!==false&&k!=='stu001|adebayo ojo|jss1a'&&k!=='stu002|adetayo aveda|jss1a';}).map(function(s){var k=key_(s.StudentID,s.StudentName,s.Class);return {StudentID:s.StudentID,StudentName:s.StudentName,Class:s.Class,SubjectCount:subjectCounts[k]||0};});
   var order={},classOrder={};students.forEach(function(s,i){var k=key_(s.StudentID,s.StudentName,s.Class);if(order[k]===undefined)order[k]=i;if(classOrder[lower_(s.Class)]===undefined)classOrder[lower_(s.Class)]=i;});
   list.sort(function(a,b){var ca=classOrder[lower_(a.Class)]===undefined?999999:classOrder[lower_(a.Class)],cb=classOrder[lower_(b.Class)]===undefined?999999:classOrder[lower_(b.Class)];return ca-cb||(order[key_(a.StudentID,a.StudentName,a.Class)]||0)-(order[key_(b.StudentID,b.StudentName,b.Class)]||0);});
-  var seen={};return list.filter(function(c){var k=key_(c.StudentID,c.StudentName,c.Class);if(seen[k])return false;seen[k]=true;return true;});
+  var seen={},unique=list.filter(function(c){var k=key_(c.StudentID,c.StudentName,c.Class);if(seen[k])return false;seen[k]=true;return true;});
+  if(sessionId){var chosen=rows_('SessionClasses').filter(function(x){return norm_(x.SessionID)===norm_(sessionId)&&lower_(x.Included)==='yes';}).map(function(x){return lower_(x.ClassName);});if(chosen.length)unique=unique.filter(function(c){return chosen.indexOf(lower_(c.Class))>=0;});else unique=[];}
+  return unique;
+}
+function saveSessionClasses_(p){
+  var id=requireText_(p.sessionId,'Session'),se=findSession_(id);if(!se)throw new Error('Session not found.');if(lower_(se.Status)==='confirmed')throw new Error('Confirmed sessions are locked. Use the reallocation action.');
+  if(!Array.isArray(p.classes)||!p.classes.length)throw new Error('Select at least one participating class.');
+  var available={};candidates_().forEach(function(c){available[lower_(c.Class)]=c.Class;});var selected=[];p.classes.forEach(function(c){var k=lower_(c);if(available[k]&&selected.indexOf(k)<0)selected.push(k);});if(!selected.length)throw new Error('The selected classes have no eligible students.');
+  var s=sheet_('SessionClasses'),m=headerMap_(s),v=s.getDataRange().getValues();for(var i=v.length-1;i>=1;i--)if(norm_(v[i][m.SessionID])===id)s.deleteRow(i+1);
+  selected.forEach(function(k){append_('SessionClasses',{SessionID:id,ClassName:available[k],Included:'Yes'});});return {message:'Participating classes saved.',classes:selected.map(function(k){return available[k];}),candidateCount:candidates_(id).length};
 }
 function preview_(p){
   var id=requireText_(p.sessionId,'Session'),se=findSession_(id);if(!se)throw new Error('Session not found.');
   if(lower_(se.Status)==='confirmed'&&!p.allowConfirmed)throw new Error('This session is confirmed. Use explicit reallocation.');
   var rooms=rows_('RoomSettings').filter(function(r){return norm_(r.SessionID)===id;}).sort(function(a,b){return Number(a.RoomNumber)-Number(b.RoomNumber);});
   if(!rooms.length)throw new Error('Save room settings first.');
-  var people=candidates_(),total=rooms.reduce(function(n,r){return n+Number(r.Capacity);},0);if(people.length>total)throw new Error('Room capacity ('+total+') is less than eligible candidates ('+people.length+').');
+  var people=candidates_(id),total=rooms.reduce(function(n,r){return n+Number(r.Capacity);},0);if(people.length>total)throw new Error('Room capacity ('+total+') is less than eligible candidates ('+people.length+').');
   var counts=rooms.map(function(){return 0;}),alloc=[],roomIndex=0;
   people.forEach(function(c){
     var attempts=0;while(attempts<rooms.length&&counts[roomIndex]>=Number(rooms[roomIndex].Capacity)){roomIndex=(roomIndex+1)%rooms.length;attempts++;}
