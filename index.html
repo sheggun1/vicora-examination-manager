@@ -58,31 +58,16 @@ function classStream(a,regs){
  if(/^JSS1/.test(c))return 'JSS1';if(/^JSS2/.test(c))return 'JSS2';if(/^JSS3/.test(c))return 'JSS3';
  if(c==='SS1A'||c==='SS1B')return 'SS1 Science';
  if(c==='SS2A')return 'SS2 Science';
- let subjects=regs.filter(r=>registrationMatches(r,a)).map(r=>normalizedSubject(r.Subject));
- let compactSubjects=subjects.map(s=>s.replace(/[^A-Z0-9]/g,''));
- let arts=compactSubjects.some(s=>s.includes('CRS')||s.includes('LITERATURE'));
- let comm=compactSubjects.some(s=>s.includes('ECON')||s.includes('COMMERCE'));
- if(/^SS1C/.test(c)||/^SS2C/.test(c)){
-   if(arts>comm&&arts>0)return c.startsWith('SS1')?'SS1 Arts':'SS2 Arts';
-   if(comm>arts&&comm>0)return c.startsWith('SS1')?'SS1 Commercial':'SS2 Commercial';
-   return c.startsWith('SS1')?'SS1 Unclassified':'SS2 Unclassified';
- }
+ if(c==='SS1C')return 'SS1 Arts & Commercial';
+ if(c==='SS2C')return 'SS2 Science & Commercial';
  return c||'Unclassified';
 }
-function subjectClassStream(a,r,regs){
- let c=String(a.Class||'').toUpperCase().replace(/\s+/g,'');
- let sub=normalizedSubject(r.Subject).replace(/[^A-Z0-9]/g,'');
- if(c==='SS1C'||c==='SS2C'){
-   if(sub.includes('CRS')||sub.includes('LITERATURE'))return c+' Arts';
-   if(sub.includes('ECON')||sub.includes('COMMERCE'))return c+' Commercial';
- }
- return classStream(a,regs);
-}
+function subjectClassStream(a,r,regs){return classStream(a,regs)}
 function drawRooms(){
  let id=$('printSession').value||$('sessionSelect').value,rooms=D.rooms.filter(r=>r.SessionID===id).sort((a,b)=>Number(a.RoomNumber)-Number(b.RoomNumber)),regs=(D.registrations||[]).filter(r=>String(r.RegistrationStatus||'').trim().toLowerCase()==='active'),saved=D.allocations.filter(a=>a.SessionID===id),draft=(!saved.length&&PREVIEW&&PREVIEW.sessionId===id)?PREVIEW.allocations:null,source=saved.length?saved:(draft||[]);
  let classOrder={};(D.students||[]).forEach((st,i)=>{let k=String(st.Class||'').toLowerCase();if(classOrder[k]===undefined)classOrder[k]=i});
  let getClassRank=c=>classOrder[String(c||'').toLowerCase()]===undefined?999999:classOrder[String(c||'').toLowerCase()];
- let categories=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts','SS1 Commercial','SS2 Science','SS2 Arts','SS2 Commercial','Unclassified'];
+ let categories=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts & Commercial','SS2 Science','SS2 Science & Commercial','Unclassified'];
  let byRoom=rooms.map(room=>{let list=source.filter(a=>String(a.RoomNumber)===String(room.RoomNumber)).sort((a,b)=>getClassRank(a.Class)-getClassRank(b.Class)||String(a.Class).localeCompare(String(b.Class))||String(a.StudentName).localeCompare(String(b.StudentName)));let classCounts={},subjectCounts={},streamCounts={};list.forEach(a=>{classCounts[a.Class]=(classCounts[a.Class]||0)+1;let stream=classStream(a,regs);streamCounts[stream]=(streamCounts[stream]||0)+1;let seen={};regs.filter(r=>registrationMatches(r,a)).forEach(r=>{let sub=String(r.Subject||'').trim();if(sub&&!seen[sub]){subjectCounts[sub]=(subjectCounts[sub]||0)+1;seen[sub]=true;}})});return {room,list,classCounts,subjectCounts,streamCounts};});
  $('roomLists').innerHTML=(draft?'<div class="note no-print">Draft preview only — these assignments are not saved until you confirm.</div>':'')+byRoom.map(({room,list})=>'<div class="card room-print-page"><h2>VICORA EXAMINATION ROOM LIST</h2><h3>'+esc(room.RoomName)+' — Room '+esc(room.RoomNumber)+'</h3><p>Session: '+esc((D.sessions.find(x=>x.SessionID===id)||{}).SessionName||id)+'</p><p>'+list.length+' candidates / capacity '+esc(room.Capacity)+'</p><table><tr><th>No.</th><th>Student name</th><th>Class</th><th class="student-id">Student ID</th></tr>'+list.map((a,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(a.StudentName)+'</td><td>'+esc(a.Class)+'</td><td class="student-id">'+esc(a.StudentID)+'</td></tr>').join('')+'</table></div>').join('')||'No room settings found for this session.';
  let totals={};categories.forEach(c=>totals[c]=0);byRoom.forEach(x=>categories.forEach(c=>totals[c]+=x.streamCounts[c]||0));
@@ -106,7 +91,7 @@ function drawRooms(){
      });
    });
  });
- let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1 Science','SS1C Arts','SS1C Commercial','SS1 Unclassified','SS2 Science','SS2C Arts','SS2C Commercial','SS2 Unclassified','Unclassified'];
+ let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts & Commercial','SS2 Science','SS2 Science & Commercial','Unclassified'];
  let subjectRows=Object.values(subjectClassRoomCounts).sort((a,b)=>{
    let ai=classOrderForSubjects.indexOf(a.className),bi=classOrderForSubjects.indexOf(b.className);
    return (ai<0?999:ai)-(bi<0?999:bi)||a.subject.localeCompare(b.subject);
