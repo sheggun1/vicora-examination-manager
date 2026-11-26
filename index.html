@@ -69,6 +69,16 @@ function classStream(a,regs){
  }
  return c||'Unclassified';
 }
+function subjectClassStream(a,r,regs){
+ let c=String(a.Class||'').toUpperCase().replace(/\\s+/g,'');
+ let sub=normalizedSubject(r.Subject).replace(/[^A-Z0-9]/g,'');
+ if(c==='SS1C'||c==='SS2C'){
+   let prefix=c;
+   if(sub.includes('CRS')||sub.includes('LITERATURE'))return prefix+' Arts';
+   if(sub.includes('ECON')||sub.includes('COMMERCE'))return prefix+' Commercial';
+ }
+ return classStream(a,regs);
+}
 function drawRooms(){
  let id=$('printSession').value||$('sessionSelect').value,rooms=D.rooms.filter(r=>r.SessionID===id).sort((a,b)=>Number(a.RoomNumber)-Number(b.RoomNumber)),regs=(D.registrations||[]).filter(r=>String(r.RegistrationStatus||'').trim().toLowerCase()==='active'),saved=D.allocations.filter(a=>a.SessionID===id),draft=(!saved.length&&PREVIEW&&PREVIEW.sessionId===id)?PREVIEW.allocations:null,source=saved.length?saved:(draft||[]);
  let classOrder={};(D.students||[]).forEach((st,i)=>{let k=String(st.Class||'').toLowerCase();if(classOrder[k]===undefined)classOrder[k]=i});
@@ -83,13 +93,13 @@ function drawRooms(){
  byRoom.forEach(({room,list})=>{
    let roomKey=String(room.RoomNumber);
    list.forEach(a=>{
-     let classLabel=classStream(a,regs);
      let seen=new Set();
      regs.filter(r=>registrationMatches(r,a)).forEach(r=>{
        let subject=String(r.Subject||'').trim();
        let subjectKey=normalizedSubject(subject);
        if(!subjectKey||seen.has(subjectKey))return;
        seen.add(subjectKey);
+       let classLabel=subjectClassStream(a,r,regs);
        let rowKey=classLabel+'|'+subjectKey;
        subjectClassRoomCounts[rowKey]=subjectClassRoomCounts[rowKey]||{className:classLabel,subject,rooms:{},total:0};
        subjectClassRoomCounts[rowKey].rooms[roomKey]=(subjectClassRoomCounts[rowKey].rooms[roomKey]||0)+1;
@@ -103,7 +113,7 @@ function drawRooms(){
    return (ai<0?999:ai)-(bi<0?999:bi)||a.subject.localeCompare(b.subject);
  });
  let subjectRoomTable='<h3>Subject allocation by class and examination room</h3><p>Each row shows how many students in a particular class/stream are taking a subject in each room. Counts use active subject registrations and count each student once per subject.</p><div class="scroll"><table class="subject-room-matrix"><thead><tr><th>Class / Stream</th><th>Subject</th>'+rooms.map(r=>'<th>'+esc(r.RoomName)+'</th>').join('')+'<th>Total</th></tr></thead><tbody>'+subjectRows.map(x=>'<tr><th>'+esc(x.className)+'</th><td>'+esc(x.subject)+'</td>'+rooms.map(r=>'<td>'+(x.rooms[String(r.RoomNumber)]||0)+'</td>').join('')+'<th>'+x.total+'</th></tr>').join('')+'<tr><th colspan="2">Room total (subject registrations)</th>'+rooms.map(r=>'<th>'+subjectRows.reduce((n,x)=>n+(x.rooms[String(r.RoomNumber)]||0),0)+'</th>').join('')+'<th>'+subjectRows.reduce((n,x)=>n+x.total,0)+'</th></tr></tbody></table></div>';
- $('subjectAnalysis').innerHTML=subjectRoomTable+'<h3>Detailed subject analysis by class/stream and room</h3>'+byRoom.map(({room,list})=>{let groups={};list.forEach(a=>{let g=classStream(a,regs);groups[g]=groups[g]||{};let seen={};regs.filter(r=>registrationMatches(r,a)).forEach(r=>{let sub=String(r.Subject||'').trim(),key=normalizedSubject(sub);if(sub&&!seen[key]){groups[g][sub]=(groups[g][sub]||0)+1;seen[key]=true;}});});return '<div class="card"><h4>'+esc(room.RoomName)+' — Room '+esc(room.RoomNumber)+'</h4><p>Total students: <b>'+list.length+'</b></p>'+Object.keys(groups).sort().map(g=>'<h5>'+esc(g)+'</h5><table><tr><th>Subject</th><th>Students</th></tr>'+Object.keys(groups[g]).sort().map(s=>'<tr><td>'+esc(s)+'</td><td>'+groups[g][s]+'</td></tr>').join('')+'</table>').join('');}).join('')||'No subject analysis available.';
+ $('subjectAnalysis').innerHTML=subjectRoomTable+'<h3>Detailed subject analysis by class/stream and room</h3>'+byRoom.map(({room,list})=>{let groups={};list.forEach(a=>{let seen={};regs.filter(r=>registrationMatches(r,a)).forEach(r=>{let sub=String(r.Subject||'').trim(),key=normalizedSubject(sub);if(sub&&!seen[key]){let g=subjectClassStream(a,r,regs);groups[g]=groups[g]||{};groups[g][sub]=(groups[g][sub]||0)+1;seen[key]=true;}});});return '<div class="card"><h4>'+esc(room.RoomName)+' — Room '+esc(room.RoomNumber)+'</h4><p>Total students: <b>'+list.length+'</b></p>'+Object.keys(groups).sort().map(g=>'<h5>'+esc(g)+'</h5><table><tr><th>Subject</th><th>Students</th></tr>'+Object.keys(groups[g]).sort().map(s=>'<tr><td>'+esc(s)+'</td><td>'+groups[g][s]+'</td></tr>').join('')+'</table>').join('');}).join('')||'No subject analysis available.';
  showRoomView('lists');
 }
 async function lookup(){try{let r=await get('lookup',{studentId:$('lid').value,name:$('lname').value,className:$('lclass').value});$('lookupResult').innerHTML=r.allocation?'<div class="note good"><h2>Room '+esc(r.allocation.RoomNumber)+'</h2>'+esc(r.allocation.StudentName)+' · '+esc(r.allocation.Class)+'</div>':'<div class="note bad">No confirmed allocation found. Check your details or contact the examination office.</div>'}catch(e){$('lookupResult').textContent=e.message}}
