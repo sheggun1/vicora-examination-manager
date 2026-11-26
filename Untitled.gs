@@ -20,7 +20,8 @@ const SCHEMA = {
   RegistrationAudit:['Issue','StudentID','StudentName','Class','Details'],
   ExamReadiness:['Setting','Value'],
   MutationLog:['OperationID','Action','Status','Message','CreatedAt'],
-  SessionClasses:['SessionID','ClassName','Included']
+  SessionClasses:['SessionID','ClassName','Included'],
+  SupervisionAllocations:['SessionID','ConfigJSON','AllocationJSON','UpdatedAt']
 };
 function db_(){return SpreadsheetApp.openById(VICORA_DB_ID);}
 function norm_(v){return String(v===null||v===undefined?'':v).trim();}
@@ -64,6 +65,7 @@ function doGet(e){
       ensureSchema_();
       out={ok:true,version:VICORA_VERSION,students:rows_('Students'),classes:rows_('Classes'),subjects:rows_('Subjects'),registrations:rows_('SubjectRegistrations'),sessions:rows_('ExamSessions'),rooms:rows_('RoomSettings'),allocations:rows_('Allocations'),candidates:rows_('CurrentExamCandidates'),sessionClasses:rows_('SessionClasses'),eligibleCandidates:candidates_()};
     }else if(action==='previewAllocation'){out=Object.assign({ok:true},preview_({sessionId:p.sessionId}));}
+    else if(action==='getSupervision'){out=getSupervision_(p.sessionId);}
     else if(action==='mutationStatus'){var m=rows_('MutationLog').find(function(x){return norm_(x.OperationID)===norm_(p.operationId);});out=m?{ok:true,mutation:m}:{ok:false,error:'Operation is not yet recorded.'};}
     else throw new Error('Unsupported GET action: '+action);
     return json_(out,p.callback);
@@ -84,6 +86,21 @@ function doPost(e){
   }finally{try{lock.releaseLock();}catch(ignore){}}
   return json_({ok:true,operationId:op});
 }
+function getSupervision_(sessionId){
+  var sid=requireText_(sessionId,'Examination session'),row=rows_('SupervisionAllocations').find(function(x){return norm_(x.SessionID)===sid;});
+  return {ok:true,sessionId:sid,config:row?JSON.parse(row.ConfigJSON||'{}'):null,allocation:row?JSON.parse(row.AllocationJSON||'{}'):null,updatedAt:row?row.UpdatedAt:null};
+}
+function saveSupervision_(p){
+  var sid=requireText_(p.sessionId,'Examination session'),config=p.config||{},allocation=p.allocation||{};
+  if(!findSession_(sid))throw new Error('Examination session not found.');
+  if(!config||!config.lists)throw new Error('Supervision setup data is missing.');
+  var s=sheet_('SupervisionAllocations'),m=headerMap_(s),v=s.getDataRange().getValues(),row=-1;
+  for(var i=1;i<v.length;i++)if(norm_(v[i][m.SessionID])===sid){row=i+1;break;}
+  var values={SessionID:sid,ConfigJSON:JSON.stringify(config),AllocationJSON:JSON.stringify(allocation),UpdatedAt:new Date()};
+  if(row<0)append_('SupervisionAllocations',values);
+  else Object.keys(values).forEach(function(k){if(m[k]!==undefined)s.getRange(row,m[k]+1).setValue(values[k]);});
+  return {message:'Supervision setup and allocation saved to VICORA database.'};
+}
 function dispatch_(p){
   switch(p.action){
     case 'setup':return {message:'Schema checked; existing records preserved.',tabs:Object.keys(SCHEMA)};
@@ -98,6 +115,7 @@ function dispatch_(p){
     case 'saveSessionClasses':return saveSessionClasses_(p);
     case 'confirmAllocation':return confirm_(p);
     case 'reallocate':return reallocate_(p);
+    case 'saveSupervision':return saveSupervision_(p);
     default:throw new Error('Unsupported action: '+p.action);
   }
 }
