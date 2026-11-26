@@ -70,12 +70,11 @@ function classStream(a,regs){
  return c||'Unclassified';
 }
 function subjectClassStream(a,r,regs){
- let c=String(a.Class||'').toUpperCase().replace(/\\s+/g,'');
+ let c=String(a.Class||'').toUpperCase().replace(/\s+/g,'');
  let sub=normalizedSubject(r.Subject).replace(/[^A-Z0-9]/g,'');
  if(c==='SS1C'||c==='SS2C'){
-   let prefix=c;
-   if(sub.includes('CRS')||sub.includes('LITERATURE'))return prefix+' Arts';
-   if(sub.includes('ECON')||sub.includes('COMMERCE'))return prefix+' Commercial';
+   if(sub.includes('CRS')||sub.includes('LITERATURE'))return c+' Arts';
+   if(sub.includes('ECON')||sub.includes('COMMERCE'))return c+' Commercial';
  }
  return classStream(a,regs);
 }
