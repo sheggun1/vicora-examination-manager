@@ -62,7 +62,16 @@ function classStream(a,regs){
  if(c==='SS2C')return 'SS2 Science & Commercial';
  return c||'Unclassified';
 }
-function subjectClassStream(a,r,regs){return classStream(a,regs)}
+function subjectClassStream(a,r,regs){
+ let c=String(a.Class||'').toUpperCase().replace(/\\s+/g,'');
+ if(/^JSS1/.test(c))return 'JSS1';
+ if(/^JSS2/.test(c))return 'JSS2';
+ if(/^JSS3/.test(c))return 'JSS3';
+ if(/^SS1/.test(c))return 'SS1';
+ if(/^SS2/.test(c))return 'SS2';
+ if(/^SS3/.test(c))return 'SS3';
+ return c||'Unclassified';
+}
 function drawRooms(){
  let id=$('printSession').value||$('sessionSelect').value,rooms=D.rooms.filter(r=>r.SessionID===id).sort((a,b)=>Number(a.RoomNumber)-Number(b.RoomNumber)),regs=(D.registrations||[]).filter(r=>String(r.RegistrationStatus||'').trim().toLowerCase()==='active'),saved=D.allocations.filter(a=>a.SessionID===id),draft=(!saved.length&&PREVIEW&&PREVIEW.sessionId===id)?PREVIEW.allocations:null,source=saved.length?saved:(draft||[]);
  let classOrder={};(D.students||[]).forEach((st,i)=>{let k=String(st.Class||'').toLowerCase();if(classOrder[k]===undefined)classOrder[k]=i});
@@ -91,7 +100,7 @@ function drawRooms(){
      });
    });
  });
- let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1 Science','SS1 Arts & Commercial','SS2 Science','SS2 Science & Commercial','Unclassified'];
+ let classOrderForSubjects=['JSS1','JSS2','JSS3','SS1','SS2','SS3','Unclassified'];
  let subjectRows=Object.values(subjectClassRoomCounts).sort((a,b)=>{
    let ai=classOrderForSubjects.indexOf(a.className),bi=classOrderForSubjects.indexOf(b.className);
    return (ai<0?999:ai)-(bi<0?999:bi)||a.subject.localeCompare(b.subject);
