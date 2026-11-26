@@ -63,7 +63,7 @@ function doGet(e){
     }else if(action==='adminData'){
       ensureSchema_();
       out={ok:true,version:VICORA_VERSION,students:rows_('Students'),classes:rows_('Classes'),subjects:rows_('Subjects'),registrations:rows_('SubjectRegistrations'),sessions:rows_('ExamSessions'),rooms:rows_('RoomSettings'),allocations:rows_('Allocations'),candidates:rows_('CurrentExamCandidates'),sessionClasses:rows_('SessionClasses'),eligibleCandidates:candidates_()};
-    }else if(action==='previewAllocation'){out=preview_({sessionId:p.sessionId});}
+    }else if(action==='previewAllocation'){out=Object.assign({ok:true},preview_({sessionId:p.sessionId}));}
     else if(action==='mutationStatus'){var m=rows_('MutationLog').find(function(x){return norm_(x.OperationID)===norm_(p.operationId);});out=m?{ok:true,mutation:m}:{ok:false,error:'Operation is not yet recorded.'};}
     else throw new Error('Unsupported GET action: '+action);
     return json_(out,p.callback);
