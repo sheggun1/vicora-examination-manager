@@ -52,7 +52,7 @@ async function reallocate(){if(!confirm('Replace existing allocation and record 
 function showRoomView(view){document.querySelectorAll('[data-room-view]').forEach(b=>b.classList.toggle('on',b.dataset.roomView===view));$('roomLists').hidden=view!=='lists';$('classAnalysis').hidden=view!=='classes';$('subjectAnalysis').hidden=view!=='subjects'}
 function normalizedSubject(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,' ').replace(/\s+/g,' ').trim()}
 function identityPart(v){return String(v??'').trim().replace(/\s+/g,' ').toLowerCase()}
-function registrationMatches(r,a){return identityPart(r.StudentID)===identityPart(a.StudentID)&&identityPart(r.StudentName)===identityPart(a.StudentName)&&identityPart(r.Class)===identityPart(a.Class)}
+function registrationMatches(r,a){return identityPart(r.StudentID)===identityPart(a.StudentID)&&identityPart(r.Class)===identityPart(a.Class)}
 function classStream(a,regs){
  let c=String(a.Class||'').toUpperCase().replace(/\s+/g,'');
  if(/^JSS1/.test(c))return 'JSS1';if(/^JSS2/.test(c))return 'JSS2';if(/^JSS3/.test(c))return 'JSS3';
@@ -101,10 +101,10 @@ function drawRooms(){
  source.forEach(a=>regs.filter(r=>registrationMatches(r,a)).forEach(r=>{
    matchedRegistrationPairs++;
    let group=subjectClassStream(a,r,regs),sub=String(r.Subject||'').trim();
-   if(group==='SS1C Arts')ss1cArts++;
-   if(group==='SS1C Commercial')ss1cCommercial++;
-   if(group==='SS2C Arts')ss2cArts++;
-   if(group==='SS2C Commercial')ss2cCommercial++;
+   if(group==='SS1C Arts & Commercial')ss1cArts++;
+   if(group==='SS1C Arts & Commercial')ss1cCommercial++;
+   if(group==='SS2C Science & Commercial')ss2cArts++;
+   if(group==='SS2C Science & Commercial')ss2cCommercial++;
    if(String(a.Class||'').toUpperCase().replace(/\s+/g,'')==='SS1C')ss1cSubjects[sub]=(ss1cSubjects[sub]||0)+1;
    if(String(a.Class||'').toUpperCase().replace(/\s+/g,'')==='SS2C')ss2cSubjects[sub]=(ss2cSubjects[sub]||0)+1;
  }));
