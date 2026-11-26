@@ -75,7 +75,7 @@ function setPrintOrientation(orientation){printOrientation=orientation==='landsc
 function printReport(type){
  const originalTitle=document.title;
  const currentSession=(D.sessions.find(x=>x.SessionID===($('printSession').value||$('sessionSelect').value))||{}).SessionName||'';$('printPageTitle').textContent=(type==='rooms'?'EXAMINATION ROOM LISTS':type==='classes'?'EXAMINATION CLASS ANALYSIS':'EXAMINATION SUBJECT ANALYSIS')+' — '+currentSession;
- document.title=(type==='rooms'?'Examination Room Lists':type==='classes'?'Examination Class Analysis':'Examination Subject Analysis')+' — '+currentSession;document.body.classList.remove('print-class-analysis','print-subject-analysis','print-landscape','print-portrait');document.body.classList.add('print-'+printOrientation);
+ document.title=(type==='rooms'?'Examination Room Lists':type==='classes'?'Examination Class Analysis':'Examination Subject Analysis')+' — '+currentSession;document.body.classList.remove('print-class-analysis','print-subject-analysis','print-landscape','print-portrait');document.body.classList.add('print-'+(type==='subjects'?'landscape':printOrientation));
  if(type==='classes'){showRoomView('classes');document.body.classList.add('print-class-analysis');}
  else if(type==='subjects'){showRoomView('subjects');document.body.classList.add('print-subject-analysis');}
  else{showRoomView('lists');}
